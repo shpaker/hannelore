@@ -13,8 +13,7 @@ typedef enum LedPosition
 typedef enum LedAction
 {
   LED_LIGHT,
-  LED_BLINK,
-  LED_STROBE
+  LED_BLINK
 } LedAction;
 
 typedef enum LedValue
@@ -31,6 +30,9 @@ typedef struct Led
   LedPosition position;
   LedAction action;
   LedValue value;
+  int step_length;
+  int estimate_steps;
+  int max_steps;
 } Led;
 
 Led led_init(Led *led);

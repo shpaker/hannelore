@@ -17,7 +17,6 @@ class LedPosition(Enum):
 class LedAction(Enum):
     LIGHT = 0
     BLINK = 1
-    STROBE = 2
 
 
 @unique

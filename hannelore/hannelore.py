@@ -13,8 +13,8 @@ class Hannelore():
 
     def switch_lights(self, position=LedPosition.FRONT, action=LedAction.LIGHT,
                       value=LedValue.OFF):
-        message = Message(detail=Detail.LED, position=LedPosition.FRONT,
-                          action=LedAction.LIGHT, value=LedValue.NORMAL)
+        message = Message(detail=Detail.LED, position=position, action=action,
+                          value=value)
         self.client.send(message)
 
     def set_speed(self, speed):

@@ -36,19 +36,18 @@ typedef enum RequestData {
 //   return false;
 // }
 
-Led led_find(Led* leds[], int position)
+Led* led_find(Led* leds[], int position)
 {
 
     for (int i = 0; i < LEDS_COUNT; i++) {
         if (leds[i]->position == position) {
-            return *leds[i];
+            return leds[i];
         }
     }
 }
 
 void led_handler(Led* led, int action, int value)
 {
-
 }
 //
 
@@ -59,16 +58,26 @@ Led front_led = {
     ON_BOARD_LED_PIN,
     LED_FRONT,
     LED_LIGHT,
-    LED_OFF
+    LED_NORMAL,
+    64,
+    1024,
+    1024
 };
 
 Led* leds[LEDS_COUNT] = {
     &front_led
 };
 
+int exclude_data(byte request, RequestData request_data)
+{
+    byte res = (request >> request_data) & 3;
+    return (int)res;
+}
+
 void setup()
 {
-    led_init(&front_led);
+    pinMode(front_led.pin, OUTPUT);
+
     Serial.begin(SERIAL_BODS);
     Serial.setTimeout(SERIAL_TIMEOUT);
 
@@ -80,22 +89,35 @@ void setup()
     Serial.println("Goodnight moon!");
 }
 
-int exclude_data(byte request, RequestData request_data)
-{
-    byte res = (request >> request_data) & 3;
-    return (int)res;
-}
 
 void loop()
 { // run over and over
 
+    // LEDS
+    for (int i = 0; i < LEDS_COUNT; i++) {
+
+        if (leds[i]->value == LED_OFF) {
+            digitalWrite(leds[i]->pin, LOW);
+            continue;
+        }
+
+        switch (leds[i]->action) {
+        case LED_LIGHT:
+            digitalWrite(leds[i]->pin, HIGH);
+            break;
+        case LED_BLINK:
+            leds[i]->estimate_steps -= leds[i]->value * leds[i]->value * leds[i]->step_length;
+            if (leds[i]->estimate_steps <= 0) {
+                digitalWrite(leds[i]->pin, !digitalRead(leds[i]->pin));
+                leds[i]->estimate_steps = leds[i]->max_steps;
+            }
+            break;
+        }
+    }
+
+    // UART
     if (Serial.available()) {
 
-        // recieve package
-
-        // for (int i=0) {}
-
-        // recieve one line
         byte recieved = Serial.read();
 
         int detail = exclude_data(recieved, REQUEST_DETAIL);
@@ -103,55 +125,14 @@ void loop()
         int action = exclude_data(recieved, REQUEST_ACTION);
         int value = exclude_data(recieved, REQUEST_VALUE);
 
-        Led a;
         switch (detail) {
         case DETAIL_LED:
-            a = led_find(leds, position);
-            break;
-        case DETAIL_MOTOR:
-            break;
-        }
-
-        switch (action) {
-        case LED_LIGHT:
-            Serial.println("LED_LIGHT");
-            a.action = LED_LIGHT;
-            led_set_state(&a);
-            break;
-        case LED_BLINK:
-            Serial.println("LED_BLINK");
-            a.action = LED_BLINK;
-            led_set_state(&a);
+            Led* led = led_find(leds, position);
+            led->action = (LedAction)action;
+            led->value = (LedValue)value;
             break;
         }
-
-        // Led led;
-
-        // if (recieved == "1")
-        // {
-        //   if (led_exist(leds, String("front_led_1")))
-        //   {
-        //     led = led_find(leds, String("front_led_1"));
-        //     led_set_state(&led, true);
-        //   }
-        // }
-        // else
-        // {
-        //   led = led_find(leds, String("front_led_1"));
-        //   led_set_state(&led, false);
-        // }
-        // Serial.write(recieved);ß
-        // Serial.write(recieved);
-
-        // if (led_get_state(&front_led))
-        // {
-        //   Serial.println("ON");
-        // }
-        // else
-        // {
-        //   Serial.println("OFF");
-        // }
     }
 
-    delay(100);
+    delay(32);
 }
