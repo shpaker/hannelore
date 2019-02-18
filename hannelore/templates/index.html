@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <title>Hannelore</title>
+</head>
+
+<body>
+
+    <div class="wrapper">
+        WASD
+    </div>
+
+</body>
+
+<script>
+
+    class KeyHandler {
+        constructor(detail, position, action, toggle) {
+            this.detail = detail;
+            this.position = position;
+            this.action = action;
+            this.isPressed = false;
+            this.toggle = toggle;
+            this.isActive = false;
+        }
+
+        up() {
+            if (this.isPressed) {
+                console.log('up   ' + this.detail);
+                this.isPressed = false;
+
+                if (!this.toggle) {
+                    this.send('off');
+                    this.isActive = false;
+                }
+
+            }
+        }
+
+        down() {
+            if (!this.isPressed) {
+
+                console.log('down ' + this.detail);
+
+                this.isPressed = true;
+
+                if (!this.toggle) {
+                    this.send('normal');
+                }
+
+                if (this.toggle && this.isActive) {
+                    this.send('off');
+                    this.isActive = false;
+                }
+                else {
+                    this.send('normal');
+                    this.isActive = true;
+                }
+
+            }
+        }
+
+        send(value) {
+
+            (async () => {
+
+                const data = JSON.stringify(
+                    {
+                        position: this.position,
+                        action: this.action,
+                        mode: value
+                    }
+                );
+
+                console.log(data)
+
+                const rawResponse = await fetch('/' + this.detail, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: data
+                });
+                // const content = await rawResponse.json();
+
+            })();
+
+        }
+
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        'use strict';
+
+        const up = new KeyHandler('accelerator', 'acceleration', 'forward', false)
+        const down = new KeyHandler('accelerator', 'acceleration', 'backward', false)
+        const left = new KeyHandler('steering', 'steering', 'left', false)
+        const right = new KeyHandler('steering', 'steering', 'right', false)
+        const front_lights = new KeyHandler('lights', 'front', 'light', true)
+
+        const keyMapping = {
+            'w': up,
+            'a': left,
+            's': down,
+            'd': right,
+            'j': front_lights
+        }
+
+        document.addEventListener('keydown', event => {
+            const key = event.key.toLowerCase();
+
+            if (key in keyMapping) {
+                keyMapping[key].down()
+            }
+        });
+
+        document.addEventListener('keyup', event => {
+            const key = event.key.toLowerCase();
+
+            if (key in keyMapping) {
+                keyMapping[key].up()
+            }
+        });
+    });
+
+</script>
+
+</html>

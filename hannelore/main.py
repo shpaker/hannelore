@@ -1,20 +1,80 @@
 import logging
-from time import sleep
-from time import sleep
-from hannelore import Hannelore
-from protocol import LedAction, LedPosition, LedValue
 
+from flask import Flask, render_template, request
+
+from hannelore import Hannelore
+from protocol import leds, motor
+
+
+app = Flask(__name__)
+car = Hannelore()
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/lights', methods=['POST'])
+def lights():
+    """
+    """
+    if request.method == 'POST':
+        data = request.json
+        position = data['position']
+        action = data['action']
+        mode = data['mode']
+
+        car.switch_lights(position=leds.Position[position.upper()],
+                          action=leds.Action[action.upper()],
+                          mode=leds.Mode[mode.upper()])
+
+        return '{}'
+
+
+@app.route('/power', methods=['POST'])
+def power():
+    """
+    """
+    if request.method == 'POST':
+        mode = request.json['mode']
+
+        car.shutdown()
+
+        return '{}'
+
+
+@app.route('/accelerator', methods=['POST'])
+def accerator():
+    """
+    """
+    if request.method == 'POST':
+        data = request.json
+        action = data['action']
+        mode = data['mode']
+
+        car.accelerate(action=motor.Action[action.upper()],
+                       mode=motor.Mode[mode.upper()])
+
+        return '{}'
+
+
+@app.route('/steering', methods=['POST'])
+def steering():
+    """
+    """
+    if request.method == 'POST':
+        data = request.json
+        action = data['action']
+        mode = data['mode']
+
+        car.turn(action=motor.Action[action.upper()],
+                 mode=motor.Mode[mode.upper()])
+
+        return '{}'
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s [%(levelname)8s] %(message)s',
                         level=logging.DEBUG)
-    car = Hannelore()
-    car.switch_lights(position=LedPosition.FRONT,
-                      action=LedAction.BLINK,
-                      value=LedValue.FAST)
-    # sleep(5)
-    # while(True):
-    #     car.switch_lights(value=LedValue.OFF)
-    #     sleep(.1)
-    #     car.switch_lights(value=LedValue.NORMAL)
-    #     sleep(.1)
+
+    app.run(debug=True)
