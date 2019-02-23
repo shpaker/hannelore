@@ -18,15 +18,19 @@
 </body>
 
 <script>
+    class KeyboardHandler {
 
-    class KeyHandler {
-        constructor(detail, position, action, toggle) {
-            this.detail = detail;
-            this.position = position;
+        constructor(handler, action, toggle = false, on_mode = 'fast', off_mode = 'off') {
+            this.handler = handler;
             this.action = action;
-            this.isPressed = false;
+
             this.toggle = toggle;
+
+            this.isPressed = false;
             this.isActive = false;
+
+            this.on_mode = on_mode;
+            this.off_mode = off_mode;
         }
 
         up() {
@@ -35,7 +39,7 @@
                 this.isPressed = false;
 
                 if (!this.toggle) {
-                    this.send('off');
+                    this.send(this.off_mode);
                     this.isActive = false;
                 }
 
@@ -50,15 +54,15 @@
                 this.isPressed = true;
 
                 if (!this.toggle) {
-                    this.send('normal');
+                    this.send(this.on_mode);
                 }
 
                 if (this.toggle && this.isActive) {
-                    this.send('off');
+                    this.send(this.off_mode);
                     this.isActive = false;
                 }
                 else {
-                    this.send('normal');
+                    this.send(this.on_mode);
                     this.isActive = true;
                 }
 
@@ -71,15 +75,12 @@
 
                 const data = JSON.stringify(
                     {
-                        position: this.position,
                         action: this.action,
                         mode: value
                     }
                 );
 
-                console.log(data)
-
-                const rawResponse = await fetch('/' + this.detail, {
+                const rawResponse = await fetch('/' + this.handler, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -87,7 +88,6 @@
                     },
                     body: data
                 });
-                // const content = await rawResponse.json();
 
             })();
 
@@ -95,39 +95,218 @@
 
     }
 
+    class GamepadButtonHandler {
+        constructor(name, id) {
+            this.name = name;
+            this.id = id;
+            this.isPressed = false;
+            this.buttonUpCallback = undefined;
+            this.buttonDownCallback = undefined;
+            this.eventListeners = {};
+        }
+
+        addEventListener(eventName, callback) {
+            this.eventListeners[eventName] = callback
+        }
+
+        callEvent(eventName) {
+            if (eventName in this.eventListeners) {
+                this.eventListeners[eventName](this);
+            }
+        }
+
+    }
+
+
+    class GamepadAxesHandler {
+        constructor(name, id, accuracy, isTrigger = false) {
+            this.name = name;
+            this.id = id;
+            this.accuracy = accuracy;
+            this.isTrigger = isTrigger;
+            this.position = 0;
+            if (isTrigger) {
+                this.position = this.accuracy / 2 | 1 - 1;
+            }
+            this.eventListeners = {};
+        }
+
+        addEventListener(eventName, callback) {
+            this.eventListeners[eventName] = callback
+        }
+
+        callEvent(eventName) {
+            if (eventName in this.eventListeners) {
+                this.eventListeners[eventName](this);
+            }
+        }
+    }
+
+    class GamepadController {
+        constructor(isAxe = false) {
+            this.buttons = {
+                'square': new GamepadButtonHandler('square', 0),
+                'cross': new GamepadButtonHandler('cross', 1),
+                'circle': new GamepadButtonHandler('circle', 2),
+                'triangle': new GamepadButtonHandler('triangle', 3)
+            }
+            this.axes = {
+                'stick_left_horizontal': new GamepadAxesHandler('stick_left_horizontal', 0, 3),
+                'stick_left_vertical': new GamepadAxesHandler('stick_left_vertical', 1, 3),
+                'stick_right_horizontal': new GamepadAxesHandler('stick_right_horizontal', 2, 3),
+                'stick_right_vertical': new GamepadAxesHandler('stick_right_vertical', 5, 3),
+                'trigger_left': new GamepadAxesHandler('trigger_left', 3, 3, true),
+                'trigger_right': new GamepadAxesHandler('trigger_right', 4, 3, true),
+            }
+
+            this.gamepad = null;
+
+            window.addEventListener("gamepadconnected", event => {
+                if (this.gamepad == null) {
+                    this.gamepad = event.gamepad;
+                    console.log('Connect ' + this.gamepad.id)
+                }
+            });
+
+            window.addEventListener("gamepaddisconnected", event => {
+                if (this.gamepad == event.gamepad) {
+                    this.gamepad = null;
+                    console.log('Disconnect ' + event.gamepad.id)
+                }
+            });
+
+            requestAnimationFrame(this.check.bind(this));
+        }
+
+        check() {
+            if (this.gamepad === null) {
+                requestAnimationFrame(this.check.bind(this));
+                return null;
+            }
+
+            for (var name in this.buttons) {
+
+                var button = this.buttons[name]
+                var gamepadButton = this.gamepad.buttons[button.id]
+
+                // button down
+                if (gamepadButton['pressed'] & !button.isPressed) {
+                    button.isPressed = true;
+                    button.callEvent('keydown');
+                }
+
+                // button up
+                if (!gamepadButton['pressed'] & button.isPressed) {
+                    button.isPressed = false;
+                    button.callEvent('keyup');
+                }
+
+            }
+
+            for (var name in this.axes) {
+                var axe = this.axes[name];
+                var gamepadAxeValue = this.gamepad.axes[axe.id];
+                var position = axe.accuracy * gamepadAxeValue | 1 - 1;
+
+                if (axe.isTrigger) {
+                    position = (position + axe.accuracy) / 2 | 1 - 1;
+                }
+                // axe moved
+                if (position != axe.position) {
+                    axe.position = position;
+                    axe.callEvent('change');
+                }
+
+            }
+
+            requestAnimationFrame(this.check.bind(this));
+
+        }
+    }
+
+    class KeyboardController {
+        constructor(forward, backward, right, left, front_lights) {
+            this.keys = {
+                forward: new KeyboardHandler('accelerator', 'forward'),
+                backward: new KeyboardHandler('accelerator', 'backward'),
+                right: new KeyboardHandler('steering', 'right'),
+                left: new KeyboardHandler('steering', 'left'),
+                front_lights: new KeyboardHandler('front_lights', 'light', true)
+            };
+
+            document.addEventListener('keydown', event => {
+                const key = event.key.toLowerCase();
+                if (key in this.keys) {
+                    this.keys[key].down()
+                }
+            });
+
+            document.addEventListener('keyup', event => {
+                const key = event.key.toLowerCase();
+                if (key in this.keys) {
+                    this.keys[key].up()
+                }
+            });
+        }
+    }
+
+    function send_request(handler, action, mode) {
+
+        (async () => {
+
+            const data = JSON.stringify(
+                {
+                    action: action,
+                    mode: mode
+                }
+            );
+
+            const rawResponse = await fetch('/' + handler, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: data
+            });
+            // console.log(rawResponse)
+        })();
+
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         'use strict';
 
-        const up = new KeyHandler('accelerator', 'acceleration', 'forward', false)
-        const down = new KeyHandler('accelerator', 'acceleration', 'backward', false)
-        const left = new KeyHandler('steering', 'steering', 'left', false)
-        const right = new KeyHandler('steering', 'steering', 'right', false)
-        const front_lights = new KeyHandler('lights', 'front', 'light', true)
+        const carModes = [
+            'off',
+            'slow',
+            'normal',
+            'fast'
+        ]
 
-        const keyMapping = {
-            'w': up,
-            'a': left,
-            's': down,
-            'd': right,
-            'j': front_lights
-        }
-
-        document.addEventListener('keydown', event => {
-            const key = event.key.toLowerCase();
-
-            if (key in keyMapping) {
-                keyMapping[key].down()
+        const keyboardController = new KeyboardController('w', 'd', 's', 'a', 'q');
+        const gamepadController = new GamepadController()
+        gamepadController.buttons['cross'].addEventListener('keydown', button => {
+            send_request('front_lights', 'light', 'normal');
+        });
+        gamepadController.buttons['cross'].addEventListener('circle', button => {
+            send_request('front_lights', 'blink', 'normal');
+        });
+        gamepadController.axes['stick_left_horizontal'].addEventListener('change', axe => {
+            if (axe.position >= 0) {
+                send_request('steering', 'right', carModes[axe.position]);
+            }
+            else {
+                send_request('steering', 'left', carModes[axe.position * -1])
             }
         });
-
-        document.addEventListener('keyup', event => {
-            const key = event.key.toLowerCase();
-
-            if (key in keyMapping) {
-                keyMapping[key].up()
-            }
+        gamepadController.axes['trigger_left'].addEventListener('change', axe => {
+            send_request('accelerator', 'backward', carModes[axe.position]);
         });
+        gamepadController.axes['trigger_right'].addEventListener('change', axe => {
+            send_request('accelerator', 'forward', carModes[axe.position]);
+        });
+
     });
 
 </script>

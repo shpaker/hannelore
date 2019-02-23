@@ -15,31 +15,18 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/lights', methods=['POST'])
+@app.route('/front_lights', methods=['POST'])
 def lights():
     """
     """
     if request.method == 'POST':
         data = request.json
-        position = data['position']
         action = data['action']
         mode = data['mode']
 
-        car.switch_lights(position=leds.Position[position.upper()],
+        car.switch_lights(position=leds.Position.FRONT,
                           action=leds.Action[action.upper()],
                           mode=leds.Mode[mode.upper()])
-
-        return '{}'
-
-
-@app.route('/power', methods=['POST'])
-def power():
-    """
-    """
-    if request.method == 'POST':
-        mode = request.json['mode']
-
-        car.shutdown()
 
         return '{}'
 

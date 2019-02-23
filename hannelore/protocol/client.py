@@ -30,7 +30,10 @@ class Client():
 
         if self.connection and self.connection.is_open:
             raw_bytes = chr(message.raw).encode()
-            byte_sended = self.connection.write(raw_bytes)
+            try:
+                byte_sended = self.connection.write(raw_bytes)
+            except SerialException:
+                return None
 
             return message, byte_sended
 
