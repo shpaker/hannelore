@@ -1,97 +1,32 @@
 #include "Arduino.h"
-#include "digital_pin.h"
 
-// lights
-#define FRONT_LEDS_PIN 3
-#define PARKING_LEDS_PIN 4
+#include "config.h"
+#include "leds.h"
+#include "motors.h"
 
-// motors
-#define ACCELERATION_OUT1_MOTOR_PIN 6
-#define ACCELERATION_OUT2_MOTOR_PIN 7
-#define ACCELERATION_PWM_MOTOR_PIN 5
-#define STEERING_OUT1_MOTOR_PIN 8
-#define STEERING_OUT2_MOTOR_PIN 9
-#define STEERING_PWM_MOTOR_PIN 10
+#define EXCLUDE_BITS(request, bits_offset) (request >> bits_offset & 0x3)
 
-// USART OPTIONS
-#define SERIAL_BODS 19200
-#define SERIAL_TIMEOUT 8
+byte acceleration_speeds[] = {
+    0x0,
+    0x60,
+    0x80,
+    0xFF
+};
 
-#define LEDS_COUNT 2
-#define MOTORS_COUNT 2
+byte steering_speeds[] = {
+    0x0,
+    0x8E,
+    0xA0,
+    0xFF
+};
 
 typedef enum Detail {
     DETAIL_LED,
     DETAIL_MOTOR
 } Detail;
 
-typedef enum RequestData {
-    REQUEST_DETAIL = 6,
-    REQUEST_POSITION = 4,
-    REQUEST_ACTION = 2,
-    REQUEST_VALUE = 0
-} RequestData;
-
-/*
- * MAIN BLOCK
- */
-
-// Led* leds[LEDS_COUNT] = { &front_leds, &parking_leds };
-// Motor* motors[MOTORS_COUNT] = { &acceleration_motor, &steering_motor };
-
-Led leds[LEDS_COUNT] = {
-    Led{
-        // FRONTAL LIGHTS
-        FRONT_LEDS_PIN, // pin
-        LED_FRONT, // position
-        LED_LIGHT, // action
-        LED_OFF, // value
-        64, // blinking: step_length
-        1024, // blinking: estimate_steps
-        1024 // blinking: max_steps
-    },
-    Led{
-        // PARKING LIGHTS
-        PARKING_LEDS_PIN, // pin
-        LED_PARKING, // position
-        LED_LIGHT, // action
-        LED_OFF, // value
-        64, // blinking: step_length
-        1024, // blinking: estimate_steps
-        1024 // blinking: max_steps
-    }
-};
-
-Motor motors[MOTORS_COUNT] = {
-    Motor{
-        // STEERING WHEEL
-        STEERING_PWM_MOTOR_PIN, // pwm_pin
-        STEERING_OUT1_MOTOR_PIN, // out1_pin
-        STEERING_OUT2_MOTOR_PIN, // out2_pin
-        MOTOR_ACCELERATION, // position
-        MOTOR_FORWARD, // action
-        MOTOR_OFF // value
-    },
-    Motor{
-        // ACCELERATOR
-        ACCELERATION_PWM_MOTOR_PIN, // pwm_pin
-        ACCELERATION_OUT1_MOTOR_PIN, // out1_pin
-        ACCELERATION_OUT2_MOTOR_PIN, // out2_pin
-        MOTOR_ACCELERATION, // position
-        MOTOR_FORWARD, // action
-        MOTOR_OFF // value
-    }
-};
-
-int exclude_data(byte request, RequestData request_data)
-{
-    byte res = (request >> request_data) & 3;
-    return (int)res;
-}
-
 void setup()
 {
-
     for (int i = 0; i < LEDS_COUNT; i++) {
         pinMode(leds[i].pin, OUTPUT);
     }
@@ -112,7 +47,6 @@ void setup()
 
 void loop()
 {
-
     // LEDS
     for (int i = 0; i < LEDS_COUNT; i++) {
         Led* led = &leds[i];
@@ -138,20 +72,26 @@ void loop()
 
     // MOTORS
     for (int i = 0; i < MOTORS_COUNT; i++) {
-        // Motor* motor = motors[i];
+        Motor* motor = &motors[i];
 
-        byte speed = 255 / MOTOR_FAST * motors[i].value;
-        // включаем мотор на максимальной скорости
-        analogWrite(motors[i].pwm_pin, speed);
+        byte speed;
 
-        switch (motors[i].action) {
+        if (motor->position == MOTOR_ACCELERATION) {
+            speed = acceleration_speeds[motor->value];
+        } else {
+            speed = steering_speeds[motor->value];
+        }
+
+        analogWrite(motor->pwm_pin, speed);
+
+        switch (motor->action) {
         case MOTOR_FORWARD:
-            digitalWrite(motors[i].out1_pin, HIGH);
-            digitalWrite(motors[i].out2_pin, LOW);
+            digitalWrite(motor->out1_pin, HIGH);
+            digitalWrite(motor->out2_pin, LOW);
             break;
         case MOTOR_BACKWARD:
-            digitalWrite(motors[i].out1_pin, LOW);
-            digitalWrite(motors[i].out2_pin, HIGH);
+            digitalWrite(motor->out1_pin, LOW);
+            digitalWrite(motor->out2_pin, HIGH);
             break;
         }
     }
@@ -161,10 +101,10 @@ void loop()
 
         byte recieved = Serial.read();
 
-        int detail = exclude_data(recieved, REQUEST_DETAIL);
-        int position = exclude_data(recieved, REQUEST_POSITION);
-        int action = exclude_data(recieved, REQUEST_ACTION);
-        int value = exclude_data(recieved, REQUEST_VALUE);
+        byte detail = EXCLUDE_BITS(recieved, BIT_DETAIL);
+        byte position = EXCLUDE_BITS(recieved, BIT_POSITION);
+        byte action = EXCLUDE_BITS(recieved, BIT_ACTION);
+        byte value = EXCLUDE_BITS(recieved, BIT_VALUE);
 
         switch ((Detail)detail) {
         case DETAIL_LED: {

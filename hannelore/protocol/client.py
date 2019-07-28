@@ -1,6 +1,6 @@
 import logging
-import serial
 
+import serial
 from serial import SerialException
 
 from protocol.message import Message
@@ -25,15 +25,15 @@ class Client():
         self.connection.close()
 
     def send(self, message: Message):
-        if not self.connection:
+        if not self.connection or not self.connection.is_open:
             self.connect()
 
-        if self.connection and self.connection.is_open:
+        if self.connection.is_open:
             raw_bytes = chr(message.raw).encode()
             try:
                 byte_sended = self.connection.write(raw_bytes)
             except SerialException:
-                return None
+                self.connection.close()
 
             return message, byte_sended
 

@@ -158,7 +158,6 @@
                 'trigger_left': new GamepadAxesHandler('trigger_left', 3, 3, true),
                 'trigger_right': new GamepadAxesHandler('trigger_right', 4, 3, true),
             }
-
             this.gamepad = null;
 
             window.addEventListener("gamepadconnected", event => {
@@ -251,6 +250,7 @@
     }
 
     function send_request(handler, action, mode) {
+        console.log('handler ' + handler + '|action ' + action + '|mode ' + mode);
 
         (async () => {
 
@@ -285,24 +285,31 @@
         ]
 
         const keyboardController = new KeyboardController('w', 'd', 's', 'a', 'q');
+
         const gamepadController = new GamepadController()
+
         gamepadController.buttons['cross'].addEventListener('keydown', button => {
             send_request('front_lights', 'light', 'normal');
         });
+
         gamepadController.buttons['cross'].addEventListener('circle', button => {
             send_request('front_lights', 'blink', 'normal');
         });
+
         gamepadController.axes['stick_left_horizontal'].addEventListener('change', axe => {
-            if (axe.position >= 0) {
-                send_request('steering', 'right', carModes[axe.position]);
+            var direction = 'right',
+                mode = carModes[axe.position];
+            if (axe.position < 0) {
+                direction = 'left';
+                mode = carModes[-axe.position];
             }
-            else {
-                send_request('steering', 'left', carModes[axe.position * -1])
-            }
+            send_request('steering', direction, mode)
         });
+
         gamepadController.axes['trigger_left'].addEventListener('change', axe => {
             send_request('accelerator', 'backward', carModes[axe.position]);
         });
+
         gamepadController.axes['trigger_right'].addEventListener('change', axe => {
             send_request('accelerator', 'forward', carModes[axe.position]);
         });

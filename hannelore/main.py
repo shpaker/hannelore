@@ -64,4 +64,4 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s [%(levelname)8s] %(message)s',
                         level=logging.DEBUG)
 
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)

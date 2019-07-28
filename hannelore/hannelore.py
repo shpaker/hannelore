@@ -31,19 +31,19 @@ class Hannelore():
 
         self.client.send(message)
 
-        if action == motor.Action.BACKWARD:
-            self.switch_lights(position=leds.Position.PARKING,
-                               action=leds.Action.BLINK,
-                               mode=leds.Mode.NORMAL)
+        # if action == motor.Action.BACKWARD:
+        #     self.switch_lights(position=leds.Position.PARKING,
+        #                        action=leds.Action.BLINK,
+        #                        mode=leds.Mode.NORMAL)
 
-        if action == motor.Action.FORWARD:
-            self.switch_lights(position=leds.Position.PARKING,
-                               mode=leds.Mode.OFF)
+        # if action == motor.Action.FORWARD:
+        #     self.switch_lights(position=leds.Position.PARKING,
+        #                        mode=leds.Mode.OFF)
 
-        if mode == motor.Mode.OFF:
-            self.switch_lights(position=leds.Position.PARKING,
-                               action=leds.Action.LIGHT,
-                               mode=leds.Mode.NORMAL)
+        # if mode == motor.Mode.OFF:
+        #     self.switch_lights(position=leds.Position.PARKING,
+        #                        action=leds.Action.LIGHT,
+        #                        mode=leds.Mode.NORMAL)
 
     def turn(self, action: motor.Action=motor.Action.RIGHT,
              mode: motor.Mode=motor.Mode.NORMAL):
